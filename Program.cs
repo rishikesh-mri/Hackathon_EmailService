@@ -8,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 var client = PulsarClient.Builder().Build();
 
 // Create Apache Pulsar consumer
-var consumer = client.NewConsumer().SubscriptionName("emailService").Topic("persistent://public/default/emails").Create();
+var consumer = client.NewConsumer().SubscriptionName("emailService").Topic("persistent://emails/emails/request").Create();
+
+var resultProducer = client.NewProducer().Topic("persistent://emails/emails/response").Create();
 
 // Listen on the 'emails' topic
 await foreach (var item in consumer.Messages())
@@ -19,10 +21,10 @@ await foreach (var item in consumer.Messages())
         var pm = await db.PropertyManagers.FirstOrDefaultAsync(pm => pm.Email == email);
         if (pm != null)
         {
-            Console.WriteLine($"Sending email to: {pm.Email}");
+            await resultProducer.Send(Encoding.ASCII.GetBytes($"Sending email to: {pm.Email}"));
             await consumer.Acknowledge(item);
         } else {
-            Console.WriteLine($"Could not find a property manager with email: {email}");
+            await resultProducer.Send(Encoding.ASCII.GetBytes($"Could not find a property manager with email: {email}"));
         }
     }
 }
